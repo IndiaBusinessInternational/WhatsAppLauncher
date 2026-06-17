@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>IBI WhatsApp Launcher</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --brand:#00c5ff;
+    --wa:#25d366;
+    --wa-dark:#1da851;
+    --bg:#f4f6f8;
+    --panel:#ffffff;
+    --panel-2:#f0f3f6;
+    --text:#0e1726;
+    --muted:#5b6b7e;
+    --line:#dbe2ea;
+    --ok:#1b9e4b;
+    --warn:#d98a00;
+    --bad:#d8413a;
+    --shadow:0 1px 3px rgba(16,30,54,.08),0 8px 24px rgba(16,30,54,.06);
+    --radius:14px;
+  }
+  html[data-theme="dark"]{
+    --bg:#0a0e14;
+    --panel:#121821;
+    --panel-2:#0e141c;
+    --text:#e7eef6;
+    --muted:#8aa0b6;
+    --line:#22303f;
+    --shadow:0 1px 3px rgba(0,0,0,.5),0 10px 28px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--bg);color:var(--text);
+    font-family:'Roboto',system-ui,sans-serif;font-weight:400;
+    -webkit-font-smoothing:antialiased;line-height:1.5;
+  }
+  .mono{font-family:'Roboto Mono',monospace}
+  a{color:var(--brand)}
+
+  /* Header */
+  header.app{
+    position:sticky;top:0;z-index:30;
+    background:#000;color:#fff;
+    border-bottom:1px solid #000;
+    display:flex;align-items:center;gap:14px;
+    padding:10px 18px;
+  }
+  .ver{
+    font-family:'Roboto Mono',monospace;font-size:12px;font-weight:500;
+    color:#000;background:var(--brand);
+    padding:3px 9px;border-radius:999px;letter-spacing:.5px;
+    flex-shrink:0;
+  }
+  .logo{display:flex;align-items:center;gap:11px;flex-shrink:0}
+  .logo svg{display:block}
+  .logo h1{font-size:18px;font-weight:700;margin:0;letter-spacing:.2px}
+  .logo h1 span{color:var(--brand)}
+  .spacer{flex:1}
+  .clock{
+    font-family:'Roboto Mono',monospace;font-size:12.5px;color:#cfe9f5;
+    white-space:nowrap;display:none;
+  }
+  @media(min-width:760px){.clock{display:block}}
+  .tbtn{
+    background:#1a1a1a;border:1px solid #2a2a2a;color:#fff;
+    width:38px;height:38px;border-radius:10px;cursor:pointer;
+    font-size:16px;display:grid;place-items:center;flex-shrink:0;
+  }
+  .tbtn:hover{border-color:var(--brand)}
+
+  .wrap{max-width:980px;margin:0 auto;padding:20px 16px 80px}
+
+  /* Notice */
+  .notice{
+    background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--warn);
+    border-radius:12px;padding:13px 15px;margin-bottom:18px;font-size:13.5px;color:var(--muted);
+    display:flex;gap:11px;align-items:flex-start;box-shadow:var(--shadow);
+  }
+  .notice b{color:var(--text)}
+  .notice .x{margin-left:auto;cursor:pointer;color:var(--muted);font-size:18px;line-height:1;background:none;border:none}
+
+  /* Steps */
+  .step{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden;
+  }
+  .step.locked{opacity:.5;pointer-events:none}
+  .step-head{display:flex;align-items:center;gap:12px;padding:15px 18px;border-bottom:1px solid var(--line)}
+  .step-num{
+    width:28px;height:28px;border-radius:8px;background:var(--brand);color:#000;
+    font-weight:700;display:grid;place-items:center;font-size:14px;flex-shrink:0;
+  }
+  .step-head h2{margin:0;font-size:16px;font-weight:500}
+  .step-head .sub{font-size:12.5px;color:var(--muted);font-weight:400}
+  .step-body{padding:18px}
+
+  /* Dropzone */
+  .drop{
+    border:2px dashed var(--line);border-radius:12px;padding:34px 20px;text-align:center;
+    cursor:pointer;transition:.15s;background:var(--panel-2);
+  }
+  .drop:hover,.drop.over{border-color:var(--brand);background:rgba(0,197,255,.06)}
+  .drop .ico{font-size:34px;margin-bottom:8px}
+  .drop p{margin:4px 0;color:var(--muted);font-size:14px}
+  .drop p b{color:var(--text)}
+  .drop small{color:var(--muted);font-size:12px}
+
+  /* Controls grid */
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:13px}
+  label.fld{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px;font-weight:500}
+  select,input[type=text],textarea{
+    width:100%;background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+    border-radius:10px;padding:10px 12px;font-family:inherit;font-size:14px;
+  }
+  select:focus,input:focus,textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(0,197,255,.15)}
+  textarea{resize:vertical;min-height:120px;line-height:1.55}
+
+  /* Stats */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:11px;margin-top:16px}
+  .stat{background:var(--panel-2);border:1px solid var(--line);border-radius:11px;padding:13px 14px}
+  .stat .n{font-size:24px;font-weight:700;font-family:'Roboto Mono',monospace}
+  .stat .l{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:2px}
+  .stat.good .n{color:var(--ok)} .stat.bad .n{color:var(--bad)} .stat.brand .n{color:var(--brand)}
+
+  /* message tools */
+  .msgtools{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+  .chip{
+    background:var(--panel-2);border:1px solid var(--line);border-radius:8px;
+    padding:6px 11px;font-size:12.5px;cursor:pointer;color:var(--text);font-family:inherit;
+  }
+  .chip:hover{border-color:var(--brand)}
+  .counter{font-size:12px;color:var(--muted);margin-top:6px;text-align:right}
+  .preview{
+    margin-top:14px;background:var(--panel-2);border:1px solid var(--line);border-radius:11px;padding:14px;
+  }
+  .preview .plabel{font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px}
+  .bubble{
+    background:#dcf8c6;color:#0a2a14;border-radius:10px 10px 10px 2px;padding:10px 13px;
+    font-size:14px;white-space:pre-wrap;max-width:520px;box-shadow:0 1px 1px rgba(0,0,0,.1);
+  }
+  html[data-theme="dark"] .bubble{background:#075e54;color:#e7fff3}
+
+  /* Send console */
+  .current{
+    background:linear-gradient(180deg,var(--panel-2),var(--panel));
+    border:1px solid var(--line);border-radius:13px;padding:18px;margin-bottom:14px;
+  }
+  .current .who{display:flex;align-items:center;gap:13px;margin-bottom:6px}
+  .avatar{
+    width:46px;height:46px;border-radius:50%;background:var(--brand);color:#000;
+    display:grid;place-items:center;font-weight:700;font-size:18px;flex-shrink:0;
+  }
+  .current .nm{font-size:18px;font-weight:500}
+  .current .ph{font-family:'Roboto Mono',monospace;font-size:14px;color:var(--muted)}
+  .current .pos{margin-left:auto;font-size:13px;color:var(--muted);font-family:'Roboto Mono',monospace}
+
+  .send-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .btn{
+    border:none;border-radius:11px;padding:13px 18px;font-family:inherit;font-size:15px;font-weight:500;
+    cursor:pointer;display:inline-flex;align-items:center;gap:8px;justify-content:center;
+  }
+  .btn-wa{background:var(--wa);color:#062b16;flex:1;min-width:200px;font-weight:700}
+  .btn-wa:hover{background:var(--wa-dark);color:#fff}
+  .btn-wa:disabled{opacity:.45;cursor:not-allowed}
+  .btn-ghost{background:var(--panel-2);border:1px solid var(--line);color:var(--text)}
+  .btn-ghost:hover{border-color:var(--brand)}
+  .kbd{font-family:'Roboto Mono',monospace;font-size:11px;background:rgba(0,0,0,.15);padding:1px 6px;border-radius:5px}
+  html[data-theme="dark"] .kbd{background:rgba(255,255,255,.1)}
+
+  /* progress */
+  .prog{height:9px;background:var(--panel-2);border:1px solid var(--line);border-radius:999px;overflow:hidden;margin:6px 0 4px}
+  .prog i{display:block;height:100%;background:var(--wa);width:0;transition:width .3s}
+  .proglabel{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-bottom:14px}
+
+  /* list */
+  .listhead{display:flex;align-items:center;gap:10px;margin:18px 0 8px}
+  .listhead h3{margin:0;font-size:14px;font-weight:500}
+  .listhead .acts{margin-left:auto;display:flex;gap:8px}
+  .listhead .acts button{font-size:12px;padding:6px 11px}
+  .qlist{border:1px solid var(--line);border-radius:11px;overflow:hidden;max-height:360px;overflow-y:auto}
+  .qrow{
+    display:flex;align-items:center;gap:11px;padding:9px 13px;border-bottom:1px solid var(--line);font-size:13.5px;
+  }
+  .qrow:last-child{border-bottom:none}
+  .qrow.active{background:rgba(0,197,255,.08)}
+  .qrow .qn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .qrow .qp{font-family:'Roboto Mono',monospace;color:var(--muted);font-size:12.5px}
+  .badge{font-size:11px;padding:2px 9px;border-radius:999px;font-weight:500;flex-shrink:0}
+  .b-pending{background:var(--panel-2);color:var(--muted);border:1px solid var(--line)}
+  .b-sent{background:rgba(27,158,75,.15);color:var(--ok)}
+  .b-skip{background:rgba(217,138,0,.15);color:var(--warn)}
+  .b-invalid{background:rgba(216,65,58,.15);color:var(--bad)}
+  .qrow .mini{background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:2px 5px}
+  .qrow .mini:hover{color:var(--brand)}
+
+  .footnote{text-align:center;color:var(--muted);font-size:12px;margin-top:26px}
+  .hidden{display:none!important}
+  .pulse{animation:pulse 1.4s infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(37,211,102,.4)}50%{box-shadow:0 0 0 6px rgba(37,211,102,0)}}
+  @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="app">
+  <span class="ver">v1.0</span>
+  <div class="logo">
+    <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
+      <g fill="#00c5ff">
+        <circle cx="4" cy="4" r="2"/><circle cx="13" cy="4" r="2"/><circle cx="22" cy="4" r="2"/>
+        <circle cx="4" cy="13" r="2"/><circle cx="13" cy="13" r="2"/><circle cx="22" cy="13" r="2"/>
+        <circle cx="4" cy="22" r="2"/><circle cx="13" cy="22" r="2"/><circle cx="22" cy="22" r="2"/>
+      </g>
+    </svg>
+    <h1>IBI <span>WhatsApp Launcher</span></h1>
+  </div>
+  <div class="spacer"></div>
+  <div class="clock" id="clock"></div>
+  <button class="tbtn" id="themeBtn" title="Toggle theme">🌙</button>
+</header>
+
+<main class="wrap">
+
+  <div class="notice" id="notice">
+    <span>⚠️</span>
+    <div>
+      <b>Use responsibly.</b> Click-to-chat opens WhatsApp with your message pre-filled — you press send for each one (WhatsApp can't be fully automated without the Business API). Message only people who know IBI, keep a relaxed pace, and WhatsApp won't flag your number. Blasting strangers fast is what gets numbers restricted.
+    </div>
+    <button class="x" id="noticeX" title="Dismiss">×</button>
+  </div>
+
+  <!-- STEP 1 -->
+  <section class="step" id="step1">
+    <div class="step-head">
+      <div class="step-num">1</div>
+      <div><h2>Load your contacts</h2><div class="sub">Excel (.xlsx, .xls) or CSV — numbers stay on your device, nothing is uploaded anywhere.</div></div>
+    </div>
+    <div class="step-body">
+      <div class="drop" id="drop">
+        <div class="ico">📇</div>
+        <p><b>Tap to choose a file</b> or drag it here</p>
+        <small>Your contact list with a phone number column</small>
+      </div>
+      <input type="file" id="file" accept=".xlsx,.xls,.csv" class="hidden" />
+    </div>
+  </section>
+
+  <!-- STEP 2 -->
+  <section class="step locked" id="step2">
+    <div class="step-head">
+      <div class="step-num">2</div>
+      <div><h2>Pick the columns</h2><div class="sub">I guessed these — change them if the guess is wrong.</div></div>
+    </div>
+    <div class="step-body">
+      <div class="grid">
+        <div id="sheetWrap">
+          <label class="fld">Sheet</label>
+          <select id="sheetSel"></select>
+        </div>
+        <div>
+          <label class="fld">Phone number column</label>
+          <select id="phoneSel"></select>
+        </div>
+        <div>
+          <label class="fld">Name column (optional)</label>
+          <select id="nameSel"></select>
+        </div>
+        <div>
+          <label class="fld">Default country code</label>
+          <select id="ccSel">
+            <option value="91">India +91</option>
+            <option value="1">USA/Canada +1</option>
+            <option value="44">UK +44</option>
+            <option value="971">UAE +971</option>
+            <option value="65">Singapore +65</option>
+            <option value="61">Australia +61</option>
+            <option value="none">None — numbers already have it</option>
+          </select>
+        </div>
+      </div>
+      <div class="stats" id="stats"></div>
+    </div>
+  </section>
+
+  <!-- STEP 3 -->
+  <section class="step locked" id="step3">
+    <div class="step-head">
+      <div class="step-num">3</div>
+      <div><h2>Write your message</h2><div class="sub">Add your website link. Use a name tag for a personal touch.</div></div>
+    </div>
+    <div class="step-body">
+      <div class="msgtools">
+        <button class="chip" data-ins="{name}">+ {name}</button>
+        <button class="chip" data-ins="https://www.indiabusinessinternational.online">+ IBI website</button>
+        <button class="chip" id="linkChip">+ Custom link</button>
+      </div>
+      <textarea id="msg" placeholder="Hi {name}, greetings from iINTELLIGENCEi! Explore our products here: https://www.indiabusinessinternational.online"></textarea>
+      <div class="counter"><span id="charCount">0</span> characters</div>
+      <div class="preview">
+        <div class="plabel">Preview (first contact)</div>
+        <div class="bubble" id="bubble">Your message will appear here…</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 4 -->
+  <section class="step locked" id="step4">
+    <div class="step-head">
+      <div class="step-num">4</div>
+      <div><h2>Send</h2><div class="sub">Open chat → press send in WhatsApp → come back → repeat. Use Enter to fly through.</div></div>
+    </div>
+    <div class="step-body">
+      <div class="current" id="current">
+        <div class="who">
+          <div class="avatar" id="avatar">?</div>
+          <div>
+            <div class="nm" id="curName">—</div>
+            <div class="ph mono" id="curPhone">—</div>
+          </div>
+          <div class="pos" id="curPos"></div>
+        </div>
+      </div>
+
+      <div class="proglabel"><span id="progText">0 sent</span><span id="progRemain"></span></div>
+      <div class="prog"><i id="progBar"></i></div>
+
+      <div class="send-row">
+        <button class="btn btn-wa pulse" id="sendBtn">Open WhatsApp &amp; mark sent →</button>
+        <button class="btn btn-ghost" id="skipBtn">Skip</button>
+        <button class="btn btn-ghost" id="backBtn">↩ Back</button>
+      </div>
+      <div class="counter">Shortcut: press <span class="kbd">Enter</span> to open the next contact &amp; advance</div>
+
+      <div class="listhead">
+        <h3>Queue</h3>
+        <div class="acts">
+          <button class="btn btn-ghost" id="exportSent">Export sent</button>
+          <button class="btn btn-ghost" id="exportRemain">Export remaining</button>
+          <button class="btn btn-ghost" id="resetBtn">New batch</button>
+        </div>
+      </div>
+      <div class="qlist" id="qlist"></div>
+    </div>
+  </section>
+
+  <div class="footnote">IBI WhatsApp Launcher · runs entirely in your browser · no data leaves this device</div>
+</main>
+
+<script>
+"use strict";
+(function(){
+  var LS_KEY = "IBI_WA_LAUNCHER_v1";
+  var THEME_KEY = "IBI_THEME";
+  var BATCH = 100;
+
+  var state = {
+    rows: [],          // array of arrays (header:1)
+    headers: [],       // header labels for current sheet
+    sheetNames: [],
+    activeSheet: "",
+    phoneCol: -1,
+    nameCol: -1,
+    cc: "91",
+    message: "",
+    contacts: [],      // {name, raw, num, status}  status: pending|sent|skipped|invalid
+    pointer: 0
+  };
+  var workbook = null;
+
+  var $ = function(id){ return document.getElementById(id); };
+
+  /* ---------- Theme ---------- */
+  function applyTheme(t){
+    document.documentElement.setAttribute("data-theme", t);
+    $("themeBtn").textContent = t === "dark" ? "☀️" : "🌙";
+    try{ localStorage.setItem(THEME_KEY, t); }catch(e){}
+  }
+  (function initTheme(){
+    var saved = "light";
+    try{ saved = localStorage.getItem(THEME_KEY) || "light"; }catch(e){}
+    applyTheme(saved);
+  })();
+  $("themeBtn").addEventListener("click", function(){
+    applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark");
+  });
+
+  /* ---------- Clock ---------- */
+  var DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  var MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  function tick(){
+    var d = new Date();
+    var h = d.getHours(), m = d.getMinutes(), s = d.getSeconds();
+    var ap = h >= 12 ? "PM" : "AM";
+    var hh = h % 12; if(hh === 0) hh = 12;
+    var pad = function(n){ return n < 10 ? "0"+n : ""+n; };
+    $("clock").textContent = pad(d.getDate())+" "+MONTHS[d.getMonth()]+" "+d.getFullYear()+
+      ", "+DAYS[d.getDay()]+", "+pad(hh)+":"+pad(m)+":"+pad(s)+" "+ap;
+  }
+  tick(); setInterval(tick, 1000);
+
+  /* ---------- Notice dismiss ---------- */
+  $("noticeX").addEventListener("click", function(){ $("notice").classList.add("hidden"); });
+
+  /* ---------- File handling ---------- */
+  var drop = $("drop"), fileInput = $("file");
+  drop.addEventListener("click", function(){ fileInput.click(); });
+  ["dragenter","dragover"].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.add("over"); });
+  });
+  ["dragleave","drop"].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.remove("over"); });
+  });
+  drop.addEventListener("drop", function(e){
+    if(e.dataTransfer.files && e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener("change", function(e){
+    if(e.target.files && e.target.files[0]) readFile(e.target.files[0]);
+  });
+
+  function readFile(file){
+    var reader = new FileReader();
+    reader.onload = function(ev){
+      try{
+        workbook = XLSX.read(ev.target.result, { type:"array" });
+        state.sheetNames = workbook.SheetNames.slice();
+        drop.querySelector("p b").textContent = "✓ " + file.name;
+        buildSheetSelect();
+        loadSheet(state.sheetNames[0]);
+        unlock("step2"); unlock("step3"); unlock("step4");
+      }catch(err){
+        alert("Couldn't read that file. Make sure it's a valid .xlsx, .xls or .csv.\n\n"+err.message);
+      }
+    };
+    reader.onerror = function(){ alert("File read failed. Please try again."); };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function buildSheetSelect(){
+    var sel = $("sheetSel");
+    sel.innerHTML = "";
+    state.sheetNames.forEach(function(n){
+      var o = document.createElement("option"); o.value = n; o.textContent = n; sel.appendChild(o);
+    });
+    $("sheetWrap").style.display = state.sheetNames.length > 1 ? "" : "none";
+    sel.onchange = function(){ loadSheet(sel.value); };
+  }
+
+  function loadSheet(name){
+    state.activeSheet = name;
+    var ws = workbook.Sheets[name];
+    var aoa = XLSX.utils.sheet_to_json(ws, { header:1, raw:false, defval:"" });
+    // drop fully empty rows
+    aoa = aoa.filter(function(r){ return r.some(function(c){ return String(c).trim() !== ""; }); });
+    if(aoa.length === 0){ alert("That sheet looks empty."); return; }
+    state.headers = (aoa[0] || []).map(function(h, i){
+      var t = String(h).trim();
+      return t || ("Column " + (i+1));
+    });
+    state.rows = aoa.slice(1);
+    buildColSelects();
+    autoDetect();
+    rebuild();
+  }
+
+  function buildColSelects(){
+    [["phoneSel", false], ["nameSel", true]].forEach(function(pair){
+      var sel = $(pair[0]); sel.innerHTML = "";
+      if(pair[1]){ var none = document.createElement("option"); none.value = "-1"; none.textContent = "— none —"; sel.appendChild(none); }
+      state.headers.forEach(function(h, i){
+        var o = document.createElement("option"); o.value = String(i); o.textContent = h; sel.appendChild(o);
+      });
+    });
+    $("phoneSel").onchange = function(){ state.phoneCol = parseInt(this.value,10); rebuild(); };
+    $("nameSel").onchange  = function(){ state.nameCol  = parseInt(this.value,10); rebuild(); };
+    $("ccSel").onchange     = function(){ state.cc = this.value; rebuild(); };
+  }
+
+  function digitCount(v){ return String(v).replace(/\D/g,"").length; }
+
+  function autoDetect(){
+    var phoneRe = /(phone|mobile|whats|contact\s*no|number|cell|tel|mob)/i;
+    var nameRe  = /(name|customer|client|contact\s*name|party)/i;
+    var pIdx = -1, nIdx = -1;
+    state.headers.forEach(function(h, i){
+      if(pIdx === -1 && phoneRe.test(h)) pIdx = i;
+      if(nIdx === -1 && nameRe.test(h) && !phoneRe.test(h)) nIdx = i;
+    });
+    if(pIdx === -1){
+      // score by data: column whose cells most often have >=10 digits
+      var best = -1, bestScore = 0, cols = state.headers.length;
+      for(var c=0;c<cols;c++){
+        var hits = 0, seen = 0;
+        for(var r=0;r<Math.min(state.rows.length,40);r++){
+          var v = state.rows[r][c]; if(v==null||String(v).trim()==="") continue;
+          seen++; if(digitCount(v) >= 10 && digitCount(v) <= 15) hits++;
+        }
+        var score = seen ? hits/seen : 0;
+        if(score > bestScore){ bestScore = score; best = c; }
+      }
+      pIdx = best >= 0 ? best : 0;
+    }
+    state.phoneCol = pIdx;
+    state.nameCol  = nIdx;
+    $("phoneSel").value = String(pIdx);
+    $("nameSel").value  = String(nIdx);
+    $("ccSel").value    = state.cc;
+  }
+
+  /* ---------- Number normalization ---------- */
+  function normalize(raw, cc){
+    if(raw == null) return { ok:false, num:"", reason:"empty" };
+    var s = String(raw).trim();
+    if(!s) return { ok:false, num:"", reason:"empty" };
+    if(/[eE]\+?\d/.test(s) && /\.\d+[eE]/.test(s)){
+      return { ok:false, num:"", reason:"stored as number — format column as Text" };
+    }
+    var hadPlus = s.indexOf("+") === 0;
+    var digits = s.replace(/\D/g, "");
+    if(!digits) return { ok:false, num:"", reason:"no digits" };
+    if(digits.indexOf("00") === 0) digits = digits.slice(2);
+
+    if(cc === "91"){
+      if(digits.length === 10 && /^[6-9]/.test(digits)) digits = "91" + digits;
+      else if(digits.length === 11 && /^0[6-9]/.test(digits)) digits = "91" + digits.slice(1);
+      else if(digits.length === 13 && digits.indexOf("910") === 0) digits = "91" + digits.slice(3);
+    } else if(cc !== "none"){
+      if(digits.length === 10 && !hadPlus) digits = cc + digits;
+    }
+    if(digits.length < 8 || digits.length > 15) return { ok:false, num:digits, reason:"length" };
+    return { ok:true, num:digits };
+  }
+
+  /* ---------- Build contacts ---------- */
+  function rebuild(){
+    var seen = {}, contacts = [], dupes = 0, invalid = 0;
+    for(var r=0; r<state.rows.length; r++){
+      var row = state.rows[r];
+      var raw = state.phoneCol >= 0 ? row[state.phoneCol] : "";
+      var nm  = state.nameCol >= 0 ? String(row[state.nameCol]||"").trim() : "";
+      var res = normalize(raw, state.cc);
+      if(!res.ok){
+        if(String(raw||"").trim() !== ""){ invalid++; contacts.push({ name:nm, raw:String(raw), num:"", status:"invalid" }); }
+        continue;
+      }
+      if(seen[res.num]){ dupes++; continue; }
+      seen[res.num] = true;
+      contacts.push({ name:nm, raw:String(raw), num:res.num, status:"pending" });
+    }
+    state.contacts = contacts;
+    state.pointer = firstPending();
+    renderStats(dupes, invalid);
+    renderQueue();
+    renderCurrent();
+    persist();
+  }
+
+  function renderStats(dupes, invalid){
+    var valid = state.contacts.filter(function(c){ return c.status !== "invalid"; }).length;
+    var html =
+      stat("brand", valid, "valid numbers") +
+      stat("", state.rows.length, "rows read") +
+      stat("bad", invalid, "skipped (bad)") +
+      stat("", dupes, "duplicates removed");
+    if(valid > BATCH){
+      html += stat("", BATCH, "per batch (recommended)");
+    }
+    $("stats").innerHTML = html;
+  }
+  function stat(cls, n, l){
+    return '<div class="stat '+cls+'"><div class="n">'+n+'</div><div class="l">'+l+'</div></div>';
+  }
+
+  /* ---------- Message ---------- */
+  var msgEl = $("msg");
+  msgEl.addEventListener("input", function(){
+    state.message = msgEl.value;
+    $("charCount").textContent = msgEl.value.length;
+    renderBubble(); persist();
+  });
+  document.querySelectorAll(".chip[data-ins]").forEach(function(b){
+    b.addEventListener("click", function(){ insertAtCursor(msgEl, b.getAttribute("data-ins")); });
+  });
+  $("linkChip").addEventListener("click", function(){
+    var url = prompt("Paste the link to insert:", "https://");
+    if(url) insertAtCursor(msgEl, url);
+  });
+  function insertAtCursor(el, text){
+    var start = el.selectionStart, end = el.selectionEnd, v = el.value;
+    el.value = v.slice(0,start) + text + v.slice(end);
+    el.selectionStart = el.selectionEnd = start + text.length;
+    el.focus();
+    state.message = el.value;
+    $("charCount").textContent = el.value.length;
+    renderBubble(); persist();
+  }
+  function fillMessage(msg, contact){
+    var name = contact && contact.name ? contact.name : "there";
+    return msg.replace(/\{name\}/gi, name);
+  }
+  function renderBubble(){
+    var first = state.contacts.filter(function(c){ return c.status !== "invalid"; })[0];
+    var txt = state.message ? fillMessage(state.message, first) : "Your message will appear here…";
+    $("bubble").textContent = txt;
+  }
+
+  /* ---------- Queue render ---------- */
+  function firstPending(){
+    for(var i=0;i<state.contacts.length;i++) if(state.contacts[i].status === "pending") return i;
+    return state.contacts.length; // done
+  }
+  function renderQueue(){
+    var list = $("qlist"); list.innerHTML = "";
+    state.contacts.forEach(function(c, i){
+      var row = document.createElement("div");
+      row.className = "qrow" + (i === state.pointer ? " active" : "");
+      var label = c.name ? c.name : (c.num || c.raw || "—");
+      var phone = c.num ? "+"+c.num : "invalid";
+      var badge = '<span class="badge b-'+c.status+'">'+c.status+'</span>';
+      var actions = c.status === "invalid" ? "" :
+        '<button class="mini" data-act="toggle" data-i="'+i+'">'+(c.status==="sent"?"undo":"")+'</button>';
+      row.innerHTML =
+        badge +
+        '<span class="qn">'+escapeHtml(label)+'</span>' +
+        '<span class="qp">'+escapeHtml(phone)+'</span>' +
+        actions;
+      list.appendChild(row);
+    });
+    list.querySelectorAll('[data-act="toggle"]').forEach(function(b){
+      b.addEventListener("click", function(){
+        var i = parseInt(b.getAttribute("data-i"),10);
+        if(state.contacts[i].status === "sent"){ state.contacts[i].status = "pending"; }
+        state.pointer = firstPending(); renderQueue(); renderCurrent(); renderProgress(); persist();
+      });
+    });
+    renderProgress();
+  }
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(m){
+      return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[m];
+    });
+  }
+
+  function renderProgress(){
+    var valid = state.contacts.filter(function(c){ return c.status !== "invalid"; });
+    var sent = valid.filter(function(c){ return c.status === "sent"; }).length;
+    var total = valid.length;
+    var pct = total ? Math.round(sent/total*100) : 0;
+    $("progBar").style.width = pct + "%";
+    $("progText").textContent = sent + " sent";
+    $("progRemain").textContent = (total - sent) + " of " + total + " left";
+  }
+
+  function renderCurrent(){
+    var c = state.contacts[state.pointer];
+    var pending = state.contacts.filter(function(x){ return x.status === "pending"; }).length;
+    if(!c || state.pointer >= state.contacts.length || pending === 0){
+      $("curName").textContent = "All done 🎉";
+      $("curPhone").textContent = "Every contact handled";
+      $("avatar").textContent = "✓";
+      $("curPos").textContent = "";
+      $("sendBtn").disabled = true;
+      $("sendBtn").classList.remove("pulse");
+      return;
+    }
+    $("sendBtn").disabled = false;
+    $("sendBtn").classList.add("pulse");
+    $("curName").textContent = c.name || "(no name)";
+    $("curPhone").textContent = "+" + c.num;
+    $("avatar").textContent = (c.name ? c.name.charAt(0) : "#").toUpperCase();
+    var validIdx = 0, validTotal = 0, pos = 0;
+    state.contacts.forEach(function(x, i){
+      if(x.status !== "invalid"){ validTotal++; if(i <= state.pointer && x.status !== "invalid") {} }
+    });
+    // position among valid
+    var counter = 0;
+    for(var i=0;i<state.contacts.length;i++){
+      if(state.contacts[i].status === "invalid") continue;
+      counter++;
+      if(i === state.pointer){ pos = counter; break; }
+    }
+    $("curPos").textContent = pos + " / " + validTotal;
+  }
+
+  /* ---------- Send actions ---------- */
+  function doSend(){
+    var c = state.contacts[state.pointer];
+    if(!c || c.status !== "pending") { gotoNextPending(); return; }
+    var text = fillMessage(state.message || "", c);
+    var url = "https://wa.me/" + c.num + (text ? "?text=" + encodeURIComponent(text) : "");
+    // clipboard fallback
+    try{ if(navigator.clipboard && text) navigator.clipboard.writeText(text); }catch(e){}
+    window.open(url, "_blank");
+    c.status = "sent";
+    gotoNextPending();
+    persist();
+  }
+  function gotoNextPending(){
+    state.pointer = firstPending();
+    renderQueue(); renderCurrent();
+  }
+  function doSkip(){
+    var c = state.contacts[state.pointer];
+    if(c && c.status === "pending"){ c.status = "skipped"; }
+    // move pointer to next pending after current
+    var next = -1;
+    for(var i=state.pointer+1;i<state.contacts.length;i++){ if(state.contacts[i].status==="pending"){ next=i; break; } }
+    state.pointer = next >= 0 ? next : firstPending();
+    renderQueue(); renderCurrent(); persist();
+  }
+  function doBack(){
+    for(var i=state.pointer-1;i>=0;i--){
+      if(state.contacts[i].status === "sent" || state.contacts[i].status === "skipped"){
+        state.contacts[i].status = "pending";
+        state.pointer = i; renderQueue(); renderCurrent(); persist(); return;
+      }
+    }
+  }
+  $("sendBtn").addEventListener("click", doSend);
+  $("skipBtn").addEventListener("click", doSkip);
+  $("backBtn").addEventListener("click", doBack);
+
+  document.addEventListener("keydown", function(e){
+    var tag = (e.target.tagName || "").toLowerCase();
+    if(tag === "textarea" || tag === "input" || tag === "select") return;
+    if($("step4").classList.contains("locked")) return;
+    if(e.key === "Enter"){ e.preventDefault(); if(!$("sendBtn").disabled) doSend(); }
+  });
+
+  /* ---------- Export ---------- */
+  function toCSV(rows){
+    return rows.map(function(r){
+      return r.map(function(cell){
+        var s = String(cell == null ? "" : cell);
+        if(/[",\n]/.test(s)) s = '"' + s.replace(/"/g,'""') + '"';
+        return s;
+      }).join(",");
+    }).join("\n");
+  }
+  function download(name, text){
+    var blob = new Blob([text], { type:"text/csv;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 100);
+  }
+  $("exportSent").addEventListener("click", function(){
+    var rows = [["Name","Number","Status"]];
+    state.contacts.filter(function(c){return c.status==="sent";}).forEach(function(c){ rows.push([c.name,"+"+c.num,"sent"]); });
+    if(rows.length === 1){ alert("No sent contacts yet."); return; }
+    download("ibi-wa-sent.csv", toCSV(rows));
+  });
+  $("exportRemain").addEventListener("click", function(){
+    var rows = [["Name","Number","Status"]];
+    state.contacts.filter(function(c){return c.status==="pending"||c.status==="skipped";}).forEach(function(c){ rows.push([c.name,"+"+c.num,c.status]); });
+    if(rows.length === 1){ alert("Nothing remaining."); return; }
+    download("ibi-wa-remaining.csv", toCSV(rows));
+  });
+  $("resetBtn").addEventListener("click", function(){
+    if(!confirm("Start a new batch? This clears the current list and progress.")) return;
+    try{ localStorage.removeItem(LS_KEY); }catch(e){}
+    location.reload();
+  });
+
+  /* ---------- Persistence ---------- */
+  function persist(){
+    try{
+      localStorage.setItem(LS_KEY, JSON.stringify({
+        cc: state.cc, message: state.message,
+        contacts: state.contacts, pointer: state.pointer
+      }));
+    }catch(e){}
+  }
+  function restore(){
+    var raw; try{ raw = localStorage.getItem(LS_KEY); }catch(e){ return false; }
+    if(!raw) return false;
+    try{
+      var d = JSON.parse(raw);
+      if(!d.contacts || !d.contacts.length) return false;
+      state.cc = d.cc || "91";
+      state.message = d.message || "";
+      state.contacts = d.contacts;
+      state.pointer = typeof d.pointer === "number" ? d.pointer : firstPending();
+      msgEl.value = state.message;
+      $("charCount").textContent = state.message.length;
+      $("ccSel").value = state.cc;
+      unlock("step3"); unlock("step4");
+      renderStats(0, state.contacts.filter(function(c){return c.status==="invalid";}).length);
+      renderQueue(); renderCurrent(); renderBubble();
+      return true;
+    }catch(e){ return false; }
+  }
+
+  function unlock(id){ $(id).classList.remove("locked"); }
+
+  /* ---------- Init ---------- */
+  (function init(){
+    if(restore()){
+      drop.querySelector("p b").textContent = "✓ Restored your last batch";
+    }
+  })();
+
+})();
+</script>
+</body>
+</html>
